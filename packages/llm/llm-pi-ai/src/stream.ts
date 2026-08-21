@@ -37,6 +37,12 @@ export function mapUsage(usage: PiUsage): TokenUsage {
 // If pi-ai ever forwards the original Error (or a fetch/dispatcher hook that lets
 // us capture the cause ourselves), classify on `code`/`cause` instead of text.
 function classifyPiAiError(message: string): string {
+  // Some gateways use 403 for a model/protocol mismatch (rather than an
+  // authentication failure).  Check the actionable body before treating all
+  // 403 responses as bad credentials.
+  if (/does not support (?:this )?API format|model.*(?:API format|protocol).*not supported/i.test(message)) {
+    return 'INVALID_REQUEST'
+  }
   if (/\b(?:401|403)\b/.test(message)) return 'AUTH'
   if (isQuotaExceededError(message)) return QUOTA_EXCEEDED_CODE
   if (/\b429\b|rate.?limit/i.test(message)) return 'RATE_LIMIT'

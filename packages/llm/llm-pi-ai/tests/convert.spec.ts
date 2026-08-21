@@ -753,6 +753,10 @@ describe('mapStopReason / mapUsage', () => {
   it('maps routable HTTP-ish error messages to stable codes', () => {
     expect(mapStopReason(assistant({ stopReason: 'error', errorMessage: 'HTTP 401: bad key' })))
       .toMatchObject({ kind: 'error', failure: { code: 'AUTH' } })
+    expect(mapStopReason(assistant({
+      stopReason: 'error',
+      errorMessage: 'HTTP 403: The requested model does not support this API format: model=claude-sonnet-5, format=OPENAI.',
+    }))).toMatchObject({ kind: 'error', failure: { code: 'INVALID_REQUEST' } })
     expect(mapStopReason(assistant({ stopReason: 'error', errorMessage: 'HTTP 429: rate limit' })))
       .toMatchObject({ kind: 'error', failure: { code: 'RATE_LIMIT' } })
     expect(mapStopReason(assistant({ stopReason: 'error', errorMessage: 'HTTP 429: insufficient_quota' })))
