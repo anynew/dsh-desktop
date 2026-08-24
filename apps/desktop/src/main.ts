@@ -3,7 +3,7 @@
 import { appendFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { app, BrowserWindow, crashReporter, ipcMain, Menu, protocol } from 'electron'
-import { installDesktopIdentity } from './app-identity.ts'
+import { DESKTOP_UPSTREAM_BASE_TAG, installDesktopIdentity } from './app-identity.ts'
 import { desktopMenuTemplate } from './application-menu.ts'
 import { rejectInvalidCertificate } from './certificate-policy.ts'
 import { installDesktopCommandLinePolicy } from './command-line-policy.ts'
@@ -108,6 +108,7 @@ if (!app.requestSingleInstanceLock()) {
     const protocolHandler = createDesktopProtocolHandler({
       distIndex: join(appRoot, 'dist', 'index.html'),
       clientModules,
+      desktopAbout: { clientVersion: app.getVersion(), upstreamBaseTag: DESKTOP_UPSTREAM_BASE_TAG },
     })
     protocol.handle('dsh-app', async request => protocolHandler(request))
     const recovery = new RendererRecoveryPolicy()

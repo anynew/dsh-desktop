@@ -37,6 +37,7 @@ function fixture(): {
         graph: () => graph,
         clientPath: id => id === '@fixture/plugin' ? bundle : undefined,
       },
+      desktopAbout: { clientVersion: '0.1.0-rc.8', upstreamBaseTag: 'dsh-v0.1.1-rc.2' },
     }),
   }
 }
@@ -51,6 +52,7 @@ describe('desktop custom protocol', () => {
     const html = await response.text()
     expect(html).toContain('window.__ModuleLoader__=')
     expect(html).toContain('globalThis["__DSH_BOOT__"] = {"rev":"desktop-graph"')
+    expect(html).toContain('globalThis["__DSH_DESKTOP_ABOUT__"] = {"clientVersion":"0.1.0-rc.8","upstreamBaseTag":"dsh-v0.1.1-rc.2"}')
     expect(response.headers.get('content-security-policy')).toContain("default-src 'none'")
     expect(response.headers.get('content-security-policy')).toContain("connect-src 'none'")
     expect(response.headers.get('content-security-policy')).toMatch(/script-src 'self' 'sha256-/)

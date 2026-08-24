@@ -6,6 +6,7 @@ import { dirname, extname, resolve, sep } from 'node:path'
 import type { ClientModuleRegistry, WebBootGraph } from '@deepseek-ai/dsh-client-modules'
 import { bootInjections } from '@deepseek-ai/dsh-client-modules'
 import { renderIndexInjections } from '@deepseek-ai/dsh-host-webserver'
+import { DESKTOP_ABOUT_GLOBAL, type DesktopAboutBuild } from './about-build.ts'
 import { DESKTOP_APP_ORIGIN } from './ipc-main.ts'
 
 const MIME: Readonly<Record<string, string>> = {
@@ -24,6 +25,8 @@ export interface DesktopProtocolOptions {
   readonly distIndex: string
   /** Live client graph and package bundle resolver. */
   readonly clientModules: Pick<ClientModuleRegistry, 'clientPath' | 'graph'>
+  /** Immutable build details made available to the desktop-only About page. */
+  readonly desktopAbout: DesktopAboutBuild
 }
 
 /**
@@ -56,7 +59,7 @@ export function createDesktopProtocolHandler(options: DesktopProtocolOptions): (
     const target = resolve(distRoot, `.${pathname}`)
     if (target !== distRoot && !target.startsWith(distRoot + sep)) return response('', 403)
     if (target === distRoot || target === distIndex) {
-      return serveIndex(distIndex, options.clientModules.graph(), request.method === 'HEAD')
+      return serveIndex(distIndex, options.clientModules.graph(), options.desktopAbout, request.method === 'HEAD')
     }
     try {
       const body = await readFile(target)
@@ -64,7 +67,7 @@ export function createDesktopProtocolHandler(options: DesktopProtocolOptions): (
     } catch (error) {
       if (!isMissingResource(error)) throw error
       if (extname(target) !== '') return response('', 404)
-      return serveIndex(distIndex, options.clientModules.graph(), request.method === 'HEAD')
+      return serveIndex(distIndex, options.clientModules.graph(), options.desktopAbout, request.method === 'HEAD')
     }
   }
 }
@@ -94,8 +97,11 @@ function resolvePluginResource(
   }
 }
 
-async function serveIndex(path: string, graph: WebBootGraph, head: boolean): Promise<Response> {
-  const html = renderIndexInjections(await readFile(path, 'utf8'), bootInjections(graph))
+async function serveIndex(path: string, graph: WebBootGraph, desktopAbout: DesktopAboutBuild, head: boolean): Promise<Response> {
+  const html = renderIndexInjections(await readFile(path, 'utf8'), [
+    { kind: 'global', name: DESKTOP_ABOUT_GLOBAL, value: desktopAbout },
+    ...bootInjections(graph),
+  ])
   const policy = contentSecurityPolicy(html)
   return new Response(head ? null : html, {
     status: 200,

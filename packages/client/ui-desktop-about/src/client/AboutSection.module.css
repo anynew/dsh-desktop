@@ -1,0 +1,10 @@
+.section { max-width: 640px; padding: 28px 32px; color: var(--dsh-fg, #1f2329); }
+.title { margin: 0 0 28px; font-size: 24px; line-height: 1.3; }
+.details { margin: 0; border: 1px solid var(--dsh-border, #e5e7eb); border-radius: 12px; overflow: hidden; }
+.details > div { display: flex; justify-content: space-between; gap: 24px; padding: 15px 18px; }
+.details > div + div { border-top: 1px solid var(--dsh-border, #e5e7eb); }
+.details dt { color: var(--dsh-fg-muted, #6b7280); }
+.details dd { margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.links { display: flex; gap: 20px; margin-top: 22px; }
+.links a { color: var(--dsh-primary, #3979f5); text-decoration: none; }
+.links a:hover { text-decoration: underline; }

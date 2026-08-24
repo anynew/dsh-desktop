@@ -112,6 +112,7 @@ export function desktopCarrierPatches(profile: Profile): PatchOptions[] {
     // ui-workspace's directory-flow slots. Keep it paired with the Host row:
     // without it WorkspaceBrowser intentionally hides its add-workspace action.
     { insert: [{ id: 'ui-directory-picker-desktop', name: '@deepseek-ai/dsh-client-ui-directory-picker-native' }] },
+    { insert: [{ id: 'ui-desktop-about', name: '@deepseek-ai/dsh-client-ui-desktop-about' }] },
     { id: 'connection', inject: [], config: { trustedHosts: [] } },
     {
       id: 'agent-presets',
