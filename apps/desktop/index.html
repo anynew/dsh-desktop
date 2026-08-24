@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DeepSeek Harness</title>
+    <style>
+      /* This unobstructed strip is the drag handle for the macOS hidden title bar. */
+      #desktop-window-drag-region {
+        position: fixed;
+        z-index: 2147483647;
+        inset: 0 0 auto;
+        height: 12px;
+        -webkit-app-region: drag;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="desktop-window-drag-region" aria-hidden="true"></div>
+    <div id="root"></div>
+    <script type="module" src="/src/renderer.ts"></script>
+  </body>
+</html>

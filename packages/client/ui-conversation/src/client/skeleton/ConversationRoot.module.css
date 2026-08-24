@@ -65,6 +65,13 @@
   min-width: 0;
 }
 
+/* Desktop promotes workspace identity above the session-specific context.
+   The markup is present in both renderers so the slot tree stays identical;
+   the browser keeps its existing breadcrumb treatment. */
+.desktopContext {
+  display: none;
+}
+
 .crumbs {
   display: flex;
   align-items: center;
@@ -140,6 +147,97 @@
   gap: 36px;
   margin-top: 4px;
   padding-left: 8px;
+}
+
+/* The Electron renderer sets this marker before mounting the shared app.
+   Keep desktop chrome here rather than branching the session header: slots,
+   utilities, and tab interactions then remain exactly the same in both apps. */
+:global(html[data-dsh-desktop]) .header {
+  padding: 14px 24px 0 28px;
+}
+
+:global(html[data-dsh-desktop]) .titleRow {
+  align-items: flex-start;
+  min-height: 44px;
+}
+
+:global(html[data-dsh-desktop]) .titleCluster {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: 20px 20px;
+  column-gap: 8px;
+  row-gap: 2px;
+}
+
+:global(html[data-dsh-desktop]) .desktopContext {
+  display: contents;
+}
+
+:global(html[data-dsh-desktop]) .desktopWorkspaceTitle {
+  grid-row: 1;
+  grid-column: 1 / -1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 20px;
+  color: var(--dsw-alias-label-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:global(html[data-dsh-desktop]) .desktopSessionTitle {
+  grid-row: 2;
+  grid-column: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:global(html[data-dsh-desktop]) .crumbs {
+  display: none;
+}
+
+:global(html[data-dsh-desktop]) .headerActions {
+  grid-row: 2;
+  grid-column: 2;
+  min-width: 0;
+}
+
+:global(html[data-dsh-desktop]) .headerUtilities {
+  align-self: flex-start;
+  margin-left: 16px;
+}
+
+:global(html[data-dsh-desktop]) .tabs {
+  gap: 28px;
+  margin-top: 8px;
+  padding-left: 0;
+}
+
+/* The workspace remains the stable anchor. The session context is the first
+   thing allowed to disappear as the window gets narrow. */
+@media (max-width: 680px) {
+  :global(html[data-dsh-desktop]) .header {
+    padding-right: 16px;
+    padding-left: 20px;
+  }
+
+  :global(html[data-dsh-desktop]) .desktopSessionTitle {
+    display: none;
+  }
+
+  :global(html[data-dsh-desktop]) .headerActions {
+    grid-row: 1;
+  }
+
+  :global(html[data-dsh-desktop]) .headerUtilities {
+    margin-left: 10px;
+  }
 }
 
 /* figma .Tab 34:11442: 13/16 text (figma wt510, rendered 500), gap 8 to the 2px bar. */

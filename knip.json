@@ -743,6 +743,26 @@
         "react-dom"
       ]
     },
+    "apps/desktop": {
+      "entry": [
+        "src/main.ts",
+        "src/preload.ts",
+        "tests/**/*.spec.ts",
+        "scripts/*.mjs",
+        "scripts/*.cjs"
+      ],
+      "project": [
+        "src/**/*.ts",
+        "tests/**/*.ts",
+        "scripts/*.mjs",
+        "scripts/*.cjs"
+      ],
+      "ignoreDependencies": [
+        "@deepseek-ai/.+",
+        "react",
+        "react-dom"
+      ]
+    },
     "apps/cli": {
       "entry": [
         "tests/**/*.spec.ts",

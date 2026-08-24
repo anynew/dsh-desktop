@@ -59,7 +59,7 @@ function equalBreadcrumbs(left: readonly Breadcrumb[], right: readonly Breadcrum
  * @returns the hidden blank-session header or visible title and tabs.
  */
 export function ConversationSessionHeader({
-  sessionId, useSession, useSessions, useStore, actions,
+  sessionId, useSession, useSessions, useWorkspaces, useStore, actions,
   renderSlot, views, open, t,
 }: ConversationSessionHeaderProps) {
   useSyncExternalStore(views.subscribe, views.version)
@@ -67,6 +67,9 @@ export function ConversationSessionHeader({
   const selectedId = useStore(s => s.view)
   const active = resolveActiveView(tabs, selectedId)
   const ancestry = useSessions(s => deriveAncestry(s, sessionId), equalBreadcrumbs)
+  const workspaceTitle = useWorkspaces(s => s.items.find(
+    workspace => workspace.sessionIds.includes(sessionId),
+  )?.title)
   const composerPhase = useSession(s => s.composerPhase)
   const blank = useSession(s => s.blank)
   const hideChrome = blank && composerPhase === 'blank'
@@ -80,6 +83,20 @@ export function ConversationSessionHeader({
         <>
           <div className={css.titleRow}>
             <div className={css.titleCluster}>
+              <div className={css.desktopContext}>
+                <span
+                  className={css.desktopWorkspaceTitle}
+                  title={workspaceTitle ?? t('header.workspaceFallback')}
+                >
+                  {workspaceTitle ?? t('header.workspaceFallback')}
+                </span>
+                <span
+                  className={css.desktopSessionTitle}
+                  title={ancestry.at(-1)?.displayTitle ?? sessionId}
+                >
+                  {ancestry.at(-1)?.displayTitle ?? sessionId}
+                </span>
+              </div>
               <nav className={css.crumbs} aria-label={t('session.hierarchy')}>
                 {ancestry.map((summary, index) => {
                   const last = index === ancestry.length - 1

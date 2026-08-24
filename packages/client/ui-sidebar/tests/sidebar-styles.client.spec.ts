@@ -72,4 +72,11 @@ describe('SidebarRoot.module.css', () => {
     expect(declarations('.fallbackBrandName')?.get('font-size')).toBe('17px')
     expect(declarations('.fallbackBrandName')?.get('white-space')).toBe('nowrap')
   })
+
+  it('reserves a desktop-only safe area below native traffic lights', () => {
+    const desktopLogo = declarations(':global(html[data-dsh-desktop]) .logoRow')
+    expect(desktopLogo?.get('height')).toBe('96px')
+    expect(desktopLogo?.get('padding')).toBe('54px 0 10px 4px')
+    expect(declarations(':global(html[data-dsh-desktop]) .root.collapsed')?.get('padding-top')).toBe('42px')
+  })
 })

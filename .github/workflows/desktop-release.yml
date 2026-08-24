@@ -1,0 +1,178 @@
+name: desktop-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Existing release tag to build
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: desktop-release-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    environment: desktop-signing
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            args: --mac --arm64
+            artifact: desktop-macos-arm64
+            arch: arm64
+          - os: macos-15-intel
+            args: --mac --x64
+            artifact: desktop-macos-x64
+            arch: x64
+          - os: windows-2025
+            args: --win --x64
+            artifact: desktop-windows-x64
+            arch: x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.version }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Verify immutable release tag
+        working-directory: apps/desktop
+        run: pnpm run verify:release-input -- ${{ inputs.version }}
+      - run: pnpm run build
+      - run: pnpm exec tsx scripts/verify-runtime-closure.ts --manifest apps/desktop/package.json
+      - name: Verify signing credentials
+        working-directory: apps/desktop
+        env:
+          CSC_LINK: ${{ secrets.DESKTOP_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.DESKTOP_CSC_KEY_PASSWORD }}
+          WIN_CSC_LINK: ${{ secrets.DESKTOP_WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.DESKTOP_WIN_CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.DESKTOP_APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.DESKTOP_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.DESKTOP_APPLE_TEAM_ID }}
+        run: pnpm run verify:signing-environment
+      - name: Clean desktop release directory
+        working-directory: apps/desktop
+        run: pnpm run clean:release
+      - name: Build signed desktop artifacts
+        working-directory: apps/desktop
+        env:
+          CSC_LINK: ${{ secrets.DESKTOP_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.DESKTOP_CSC_KEY_PASSWORD }}
+          WIN_CSC_LINK: ${{ secrets.DESKTOP_WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.DESKTOP_WIN_CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.DESKTOP_APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.DESKTOP_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.DESKTOP_APPLE_TEAM_ID }}
+        run: pnpm exec electron-builder ${{ matrix.args }} --publish never
+      - name: Verify Electron security fuses
+        working-directory: apps/desktop
+        run: pnpm run verify:fuses
+      - name: Verify platform signatures
+        working-directory: apps/desktop
+        run: pnpm run verify:signatures
+      - name: Smoke packaged application
+        working-directory: apps/desktop
+        run: pnpm run smoke:packaged
+      - name: Verify update metadata and payload integrity
+        working-directory: apps/desktop
+        run: pnpm run verify:release-assets
+      - name: Stage architecture-specific macOS update metadata
+        if: runner.os == 'macOS'
+        working-directory: apps/desktop
+        run: node scripts/stage-update-metadata.mjs release ${{ matrix.arch }}
+      - name: Generate SBOM, checksums, and release manifest
+        working-directory: apps/desktop
+        run: pnpm run release:metadata
+      - uses: actions/attest-build-provenance@96b4a1ef7235a096b17240c259729fdd70c83d45 # v2
+        with:
+          subject-path: |
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.zip
+            apps/desktop/release/*.exe
+            apps/desktop/release/*.blockmap
+            apps/desktop/release/latest*.yml
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.zip
+            apps/desktop/release/*.exe
+            apps/desktop/release/*.blockmap
+            apps/desktop/release/latest*.yml
+          if-no-files-found: error
+
+  publish:
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: desktop-production
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.version }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: desktop-*
+          path: release
+          merge-multiple: true
+      - name: Merge macOS architecture update metadata
+        working-directory: apps/desktop
+        run: pnpm run release:merge-mac-metadata
+      - name: Verify merged release update metadata
+        working-directory: apps/desktop
+        run: node scripts/verify-release-assets.mjs release --all-platforms
+      - name: Verify target release is published and empty
+        run: |
+          test "$(gh release view '${{ inputs.version }}' --json isDraft --jq .isDraft)" = false
+          test "$(gh release view '${{ inputs.version }}' --json assets --jq '.assets | length')" = 0
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: node apps/desktop/scripts/sbom.mjs && node apps/desktop/scripts/release-manifest.mjs release
+      - name: Attest final merged release assets
+        uses: actions/attest-build-provenance@96b4a1ef7235a096b17240c259729fdd70c83d45 # v2
+        with:
+          subject-path: |
+            release/*.dmg
+            release/*.zip
+            release/*.exe
+            release/*.blockmap
+            release/latest*.yml
+            release/SHA256SUMS
+            release/release-manifest.json
+            release/sbom.cdx.json
+      - run: gh release upload "${{ inputs.version }}" release/*
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: node apps/desktop/scripts/verify-published-release.mjs release

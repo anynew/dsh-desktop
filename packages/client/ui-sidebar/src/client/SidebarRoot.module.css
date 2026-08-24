@@ -29,6 +29,19 @@
   padding: 18px 10px 6px;
 }
 
+/* Electron's native traffic lights occupy the upper-left corner. The marker
+   is installed by the desktop renderer, keeping browser sidebar geometry
+   unchanged while the desktop brand starts below that system control area. */
+:global(html[data-dsh-desktop]) .logoRow {
+  height: 96px;
+  padding: 54px 0 10px 4px;
+  margin-bottom: 6px;
+}
+
+:global(html[data-dsh-desktop]) .root.collapsed {
+  padding-top: 42px;
+}
+
 /* Scrollbars in the column are a pointer affordance: the shell adds this
    class whenever the pointer is not inside (SidebarRoot.tsx owns the linger),
    and rebinding ui-theme's indirection pair to `transparent` takes the thumb

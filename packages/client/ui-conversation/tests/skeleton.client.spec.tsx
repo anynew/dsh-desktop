@@ -333,6 +333,17 @@ describe('ConversationRoot resident composer', () => {
     expect(b.open).toHaveBeenCalledWith(sid('root'))
   })
 
+  it('publishes workspace identity separately from the current session title', () => {
+    const b = mount(conversationSnapshot(), [{ ...workspace('desktop-workbench'), sessionIds: [SID] }])
+    expect(b.view.getByText('desktop-workbench')).toBeTruthy()
+    expect(b.view.getAllByText('Child')).toHaveLength(2)
+  })
+
+  it('uses the explicit workspace empty state when no workspace owns the session', () => {
+    const b = mount(conversationSnapshot(), [])
+    expect(b.view.getByText('选择工作区')).toBeTruthy()
+  })
+
   it('active phase: fixed header outside the scrollport; sticky composer seat inside it', () => {
     const b = mount(conversationSnapshot())
     const host = b.view.container.querySelector('[data-conversation-scroll]')
