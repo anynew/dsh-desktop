@@ -57,6 +57,23 @@ export const inject: string[] = []
  * controller starter (the runtime plugin supplies sinks when its object layer
  * is ready — connection stays consumer-agnostic).
  */
+/** Shell-supplied physical transport used instead of the browser Web carrier. */
+export interface ClientConnectionTransport {
+  /** API transport for unary calls, interaction responses, and event streams. */
+  readonly api: IApiClient
+  /** Logical Remote/RPC transport over the same authenticated shell channel. */
+  readonly rpc: ClientConnectionRpc
+  /** Whether native host operations address the same machine as the renderer. */
+  readonly isLoopback: boolean
+}
+
+/** Window extension installed by a trusted desktop preload before Client boot. */
+interface DesktopConnectionWindow {
+  /** Desktop carrier supplied by the shell; absent in ordinary browsers. */
+  __DSH_DESKTOP_CONNECTION__?: ClientConnectionTransport
+}
+
+/** Client connection facade shared by GUI runtime consumers. */
 export interface ConnectionHandle {
   /** Shared api client (fixture or real, decided at boot from the page URL). */
   readonly api: IApiClient
@@ -85,8 +102,11 @@ export function apply(ctx: Context): void {
   const pageLocation = typeof location === 'undefined' ? undefined : location
   const fixture = pageLocation !== undefined && new URLSearchParams(pageLocation.search).has('fixture')
   const fixtureClient = fixture ? new FixtureApiClient() : undefined
-  const api: IApiClient = fixtureClient ?? new WebApiClient()
-  const rpc = fixtureClient?.rpc ?? createWebConnectionRpc()
+  const desktop = (globalThis as DesktopConnectionWindow).__DSH_DESKTOP_CONNECTION__
+  const api: IApiClient = fixtureClient ?? desktop?.api ?? new WebApiClient()
+  const rpc = fixtureClient?.rpc ?? desktop?.rpc ?? createWebConnectionRpc()
+  const browserIsLoopback = pageLocation === undefined || isLoopbackHostname(pageLocation.hostname)
+  const isLoopback = fixtureClient !== undefined ? true : desktop?.isLoopback ?? browserIsLoopback
   let started = false
   let description: HostDescription | undefined
   const descriptionListeners = new Set<() => void>()
@@ -103,7 +123,7 @@ export function apply(ctx: Context): void {
   }
   const handle: ConnectionHandle = {
     api,
-    isLoopback: pageLocation === undefined || isLoopbackHostname(pageLocation.hostname),
+    isLoopback,
     hostDescription: {
       getSnapshot: () => description,
       subscribe: (listener) => {

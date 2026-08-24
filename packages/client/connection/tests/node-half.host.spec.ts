@@ -249,6 +249,12 @@ describe('connection node half', () => {
       endpoint: 'goals/create',
       payload: { args: { agentId: 'agent-1' } },
     }])
+    await expect(connection.rpc.dispatch(
+      '/rpc', 'goals/create', { args: { agentId: 'agent-2' } }, new AbortController().signal,
+    )).resolves.toEqual({ ok: true, value: { accepted: true } })
+    await expect(connection.rpc.dispatch(
+      '/missing', 'goals/create', {}, new AbortController().signal,
+    )).resolves.toMatchObject({ ok: false, error: { code: 'bad-request' } })
 
     expect(() => connection.rpc.handle('/rpc', async () => ({ ok: true, value: null }), {
       authority: 'trusted-host',

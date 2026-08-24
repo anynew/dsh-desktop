@@ -4,13 +4,16 @@
  */
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { apply, type ConnectionHandle } from '../src/client/index.ts'
+import { apply, type ClientConnectionTransport, type ConnectionHandle } from '../src/client/index.ts'
 import type { RpcMessage } from '../src/client/api.ts'
 import { RpcId } from '../src/client/api.ts'
 import { FixtureApiClient } from '../src/client/fixture.ts'
 import { WebApiClient } from '../src/client/web-api-client.ts'
 
-type Win = { location?: { hostname: string; search: string; origin?: string } }
+type Win = {
+  location?: { hostname: string; search: string; origin?: string }
+  __DSH_DESKTOP_CONNECTION__?: ClientConnectionTransport
+}
 type WebSocketGlobal = { WebSocket?: typeof WebSocket }
 
 const originalWebSocket = globalThis.WebSocket
@@ -49,6 +52,7 @@ class FakeWebSocket extends EventTarget {
 
 afterEach(() => {
   delete (globalThis as Win).location
+  delete (globalThis as Win).__DSH_DESKTOP_CONNECTION__
   sockets.length = 0
   if (originalWebSocket === undefined) delete (globalThis as WebSocketGlobal).WebSocket
   else globalThis.WebSocket = originalWebSocket
@@ -76,6 +80,35 @@ describe('connection client apply', () => {
     delete (globalThis as Win).location
     const handle = await mount()
     expect(handle.api).toBeInstanceOf(WebApiClient)
+    expect(handle.isLoopback).toBe(true)
+  })
+
+  it('uses a trusted shell transport without constructing browser carriers', async () => {
+    ;(globalThis as Win).location = { hostname: 'desktop.invalid', search: '' }
+    const api = new FixtureApiClient()
+    const rpc = api.rpc
+    ;(globalThis as Win).__DSH_DESKTOP_CONNECTION__ = { api, rpc, isLoopback: true }
+
+    const handle = await mount()
+
+    expect(handle.api).toBe(api)
+    expect(handle.rpc).toBe(rpc)
+    expect(handle.isLoopback).toBe(true)
+  })
+
+  it('keeps the explicit fixture switch above a trusted shell transport', async () => {
+    ;(globalThis as Win).location = { hostname: 'desktop.invalid', search: '?fixture' }
+    const desktop = new FixtureApiClient()
+    ;(globalThis as Win).__DSH_DESKTOP_CONNECTION__ = {
+      api: desktop,
+      rpc: desktop.rpc,
+      isLoopback: false,
+    }
+
+    const handle = await mount()
+
+    expect(handle.api).toBeInstanceOf(FixtureApiClient)
+    expect(handle.api).not.toBe(desktop)
     expect(handle.isLoopback).toBe(true)
   })
 

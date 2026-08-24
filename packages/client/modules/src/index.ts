@@ -286,14 +286,15 @@ window.__ModuleLoader__={
 }
 
 /**
- * The web plugin table service: incremental `dsh.client` scan + wire composition
- * + bundle route + index tap. Construction runs the activation scan
+ * The client plugin table service: incremental `dsh.client` scan and wire
+ * composition. When WebServer exists, its adapter also installs the bundle
+ * route and index tap. Construction runs the activation scan
  * synchronously — a malformed declaration or missing bundle among the
  * already-loaded entries aggregates into one loud throw (FAILED fiber; the
  * boot activation audit reports it).
  */
 export class ClientModuleRegistry extends Service {
-  static inject = ['webServer', 'loader']
+  static inject = ['loader']
 
   private readonly table = new Map<string, WebPluginRecord>()
   // Negative verdicts (unresolvable specifier — builtins like cordis:include,
@@ -309,7 +310,7 @@ export class ClientModuleRegistry extends Service {
 
   /**
    * Build the service: subscribe, seed, and run the activation flush.
-   * @param ctx - plugin context carrying webServer and loader.
+   * @param ctx - plugin context carrying Loader and optionally WebServer.
    */
   constructor(ctx: Context) {
     super(ctx, 'clientModules')
@@ -321,7 +322,18 @@ export class ClientModuleRegistry extends Service {
       throw new Error('client-modules: ctx.baseUrl is unset — the node half needs the config-tree anchor to resolve plugin packages')
     }
     const require = createRequire(ctx.baseUrl)
-    this.resolvePkgJson = spec => require.resolve(`${spec}/package.json`)
+    const loaderRequire = createRequire(import.meta.url)
+    this.resolvePkgJson = (spec) => {
+      try {
+        return require.resolve(`${spec}/package.json`)
+      } catch (profileError) {
+        try {
+          return loaderRequire.resolve(`${spec}/package.json`)
+        } catch {
+          throw profileError
+        }
+      }
+    }
 
     // Subscribe before seeding so a fiber arriving mid-activation lands in the
     // same dirty set (Set idempotence makes the overlap harmless). An entry-less
@@ -349,14 +361,17 @@ export class ClientModuleRegistry extends Service {
       throw new ClientPackageCompositionError(failures)
     }
 
-    ctx.effect(
-      () => ctx.webServer.register({ kind: 'prefix', path: '/plugins', handler: this.serveBundle }),
-      'client-modules: bundle route',
-    )
-    ctx.effect(
-      () => ctx.webServer.tapIndex(html => injectBootManifest(html, this.composed)),
-      'client-modules: boot manifest injection',
-    )
+    const webServer = ctx.get('webServer')
+    if (webServer !== undefined) {
+      ctx.effect(
+        () => webServer.register({ kind: 'prefix', path: '/plugins', handler: this.serveBundle }),
+        'client-modules: bundle route',
+      )
+      ctx.effect(
+        () => webServer.tapIndex(html => injectBootManifest(html, this.composed)),
+        'client-modules: boot manifest injection',
+      )
+    }
   }
 
   /**
@@ -365,6 +380,14 @@ export class ClientModuleRegistry extends Service {
    */
   graph(): WebBootGraph {
     return this.composed
+  }
+
+  /** Reconcile the graph against the Loader's settled entry tree. */
+  refresh(): void {
+    for (const entry of this.ctx.loader.entries()) this.dirty.add(entry.options.name)
+    const failures: Error[] = []
+    this.flush(error => failures.push(error))
+    if (failures.length > 0) throw new ClientPackageCompositionError(failures)
   }
 
   /**
@@ -496,7 +519,7 @@ export class ClientModuleRegistry extends Service {
   private processOne(entryName: string): boolean {
     let qualifies = false
     for (const entry of this.ctx.loader.entries()) {
-      if (entry.options.name === entryName && entry.fiber !== undefined && !entry.disabled) {
+      if (entry.options.name === entryName && !entry.disabled) {
         qualifies = true
         break
       }

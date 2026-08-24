@@ -81,6 +81,20 @@ function construct(packageNames: string[]): ClientModuleRegistry {
   return constructWithRoute(packageNames).service
 }
 
+/** Construct the carrier-neutral registry without a WebServer service. */
+function constructWithoutWebServer(packageNames: string[]): ClientModuleRegistry {
+  const ctx = new Context()
+  ctx.baseUrl = pathToFileURL(root!).href + '/'
+  ctx.provide('loader', {
+    *entries() {
+      for (const packageName of packageNames) {
+        yield { options: { name: packageName }, fiber: {}, disabled: false }
+      }
+    },
+  })
+  return new ClientModuleRegistry(ctx)
+}
+
 /** Execute the exact first inline script emitted by the Host HTML transform. */
 function injectedFacade(graph: WebBootGraph): { html: string; target: ClientModuleLoaderTarget } {
   const html = injectBootManifest('<html><head></head><body><script type="module" src="/index.js"></script></body></html>', graph)
@@ -161,6 +175,18 @@ describe('HTML bootstrap facade', () => {
 })
 
 describe('client bundle activation', () => {
+  it('composes the graph without a WebServer carrier', () => {
+    const packageName = '@fixture/desktop-client'
+    const clientPath = writePackage(packageName)
+    mkdirSync(dirname(clientPath), { recursive: true })
+    writeFileSync(clientPath, 'module.exports = {}\n')
+
+    const service = constructWithoutWebServer([packageName])
+
+    expect(service.graph().entries.map(entry => entry.id)).toEqual([packageName])
+    expect(service.clientPath(packageName)).toBe(clientPath)
+  })
+
   it('allows sibling dsh roles', () => {
     const currentName = '@fixture/current-client-field'
     const clientPath = writePackage(currentName, {

@@ -35,6 +35,10 @@
     "./client": {
       "types": "./lib/types/fetch/client.d.ts",
       "default": "./lib/types/fetch/client.js"
+    },
+    "./carrier/host": {
+      "types": "./lib/types/carrier/host.d.ts",
+      "default": "./lib/types/carrier/host.js"
     }
   },
   "files": [

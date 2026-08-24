@@ -28,7 +28,13 @@ const ENDPOINT_SEGMENT_PATTERN = /^[A-Za-z0-9_$.-]+$/
 
 interface ConnectionRpcInterceptor {
   readonly matches: ConnectionRpcEndpointMatcher
+  readonly handler: ConnectionRpcHandler
   readonly fetchHandler: FetchHandler
+  readonly options: ConnectionRpcHandlerOptions
+}
+
+interface ConnectionRpcRegistration {
+  readonly handler: ConnectionRpcHandler
   readonly options: ConnectionRpcHandlerOptions
 }
 
@@ -41,10 +47,11 @@ declare module '@deepseek-ai/cordis' {
 
 /** Host Connection service whose channel registrations belong to the caller fiber. */
 export class HostConnectionService extends Service implements HostConnectionHandle {
+  private readonly handlers = new Map<string, ConnectionRpcRegistration>()
   private readonly interceptors = new Map<string, ConnectionRpcInterceptor>()
 
   /**
-   * Provide the Host half over the active HTTP server.
+   * Provide the Host half for HTTP and process-local carriers.
    * @param ctx - owning Connection plugin context.
    * @param trustedHosts - deployment authorities accepted by trusted-host channels.
    */
@@ -56,6 +63,7 @@ export class HostConnectionService extends Service implements HostConnectionHand
   get rpc(): HostConnectionRpc {
     const owner = this.ctx
     return {
+      dispatch: (channel, endpoint, payload, signal) => this.dispatch(channel, endpoint, payload, signal),
       handle: (channel, handler, options) => this.register(owner, channel, handler, options),
       intercept: (channel, matches, handler, options) =>
         this.registerInterceptor(owner, channel, matches, handler, options),
@@ -87,6 +95,27 @@ export class HostConnectionService extends Service implements HostConnectionHand
     }
   }
 
+  /** Invoke a registered logical endpoint after a physical carrier validates its message. */
+  private async dispatch(
+    channel: string,
+    endpoint: string,
+    payload: unknown,
+    signal: AbortSignal,
+  ): Promise<RpcServerResponse['result']> {
+    const interceptor = channel === API_PATH ? this.interceptors.get(channel) : undefined
+    if (interceptor !== undefined && interceptor.matches(endpoint)) {
+      return interceptor.handler(endpoint, payload, signal)
+    }
+    const registration = this.handlers.get(channel)
+    if (registration === undefined) {
+      return {
+        ok: false,
+        error: { code: 'bad-request', message: `unknown RPC channel ${JSON.stringify(channel)}`, details: { issues: [] } },
+      }
+    }
+    return registration.handler(endpoint, payload, signal)
+  }
+
   private register(
     owner: Context,
     channel: string,
@@ -96,6 +125,7 @@ export class HostConnectionService extends Service implements HostConnectionHand
     assertChannel(channel)
     const trustedHosts = options.authority === 'loopback' ? [] : this.trustedHosts
     const fetchHandler = rpcFetchHandler(channel, handler)
+    const registration: ConnectionRpcRegistration = { handler, options }
     const route: WebRoute = {
       kind: 'prefix',
       path: channel,
@@ -108,10 +138,17 @@ export class HostConnectionService extends Service implements HostConnectionHand
         await bridge(req, res, fetchHandler)
       },
     }
-    return owner.effect(
-      () => owner.webServer.register(route),
-      `client-connection: ${channel} rpc channel`,
-    )
+    return owner.effect(() => {
+      if (this.handlers.has(channel)) {
+        throw new Error(`connection: duplicate route for RPC channel ${JSON.stringify(channel)}`)
+      }
+      this.handlers.set(channel, registration)
+      const removeRoute = owner.get('webServer')?.register(route)
+      return () => {
+        this.handlers.delete(channel)
+        removeRoute?.()
+      }
+    }, `client-connection: ${channel} rpc channel`)
   }
 
   private registerInterceptor(
@@ -126,6 +163,7 @@ export class HostConnectionService extends Service implements HostConnectionHand
     }
     const interceptor: ConnectionRpcInterceptor = {
       matches,
+      handler,
       fetchHandler: rpcFetchHandler(channel, handler),
       options,
     }

@@ -24,6 +24,21 @@ export type ConnectionRpcEndpointMatcher = (endpoint: string) => boolean
 /** Host registry for logical RPC channels carried by the current transport. */
 export interface HostConnectionRpc {
   /**
+   * Dispatch one decoded request from a non-Web physical carrier.
+   * @param channel - registered logical channel.
+   * @param endpoint - channel-relative endpoint.
+   * @param payload - untrusted carrier payload.
+   * @param signal - carrier cancellation.
+   * @returns the registered handler's RPC result.
+   */
+  dispatch(
+    channel: string,
+    endpoint: string,
+    payload: unknown,
+    signal: AbortSignal,
+  ): Promise<RpcResult<unknown>>
+
+  /**
    * Register one absolute channel prefix and its trust policy.
    * @param channel - absolute logical channel such as `/rpc`.
    * @param handler - decoded endpoint handler returning the existing RPC result shape.
@@ -34,7 +49,7 @@ export interface HostConnectionRpc {
     channel: string,
     handler: ConnectionRpcHandler,
     options: ConnectionRpcHandlerOptions,
-  ): () => Promise<void>
+  ): () => void | Promise<void>
 
   /**
    * Intercept owned endpoints on the shared `/api` channel before its fallback.
@@ -49,7 +64,7 @@ export interface HostConnectionRpc {
     matches: ConnectionRpcEndpointMatcher,
     handler: ConnectionRpcHandler,
     options: ConnectionRpcHandlerOptions,
-  ): () => Promise<void>
+  ): () => void | Promise<void>
 }
 
 /** Host `ctx.connection` shape consumed by transport-independent adapters. */
