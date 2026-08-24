@@ -22,6 +22,7 @@ import type {
 import { SettingsRoot } from './SettingsRoot.tsx'
 import { CloseLabel, HeaderContent, TriggerContent } from './chrome.tsx'
 import { GeneralSection } from './GeneralSection.tsx'
+import { DesktopAboutSection, desktopAboutBuild } from './DesktopAboutSection.tsx'
 import { SettingsDocumentAction } from './SettingsDocumentAction.tsx'
 import type { SettingsDocumentActionInjected } from './SettingsDocumentAction.tsx'
 import { SettingsDocumentStore } from './settings-document-store.ts'
@@ -174,4 +175,11 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     children: { 'settings.general.item': { kind: 'list', scope: 'root' } },
   }, GeneralSection))
+  const about = desktopAboutBuild()
+  if (about !== undefined) {
+    ctx.slots.inject('settings.section', () => ctx.slots.register({
+      name: 'settings.section', id: 'about', order: 30, label: () => t('about.nav'), locale: NS,
+      inject: () => ({ about, t }),
+    }, DesktopAboutSection))
+  }
 }

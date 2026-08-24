@@ -1,0 +1,9 @@
+.section { max-width: 640px; padding: 28px 32px; }
+.section h2 { margin: 0 0 24px; font-size: 24px; }
+.section dl { margin: 0; border: 1px solid var(--dsh-border, #e5e7eb); border-radius: 12px; overflow: hidden; }
+.section dl div { display: flex; justify-content: space-between; gap: 24px; padding: 15px 18px; }
+.section dl div + div { border-top: 1px solid var(--dsh-border, #e5e7eb); }
+.section dt { color: var(--dsh-fg-muted, #6b7280); }
+.section dd { margin: 0; font-family: ui-monospace, monospace; }
+.section p { display: flex; gap: 20px; margin-top: 22px; }
+.section a { color: var(--dsh-primary, #3979f5); }
