@@ -42,6 +42,13 @@
   padding-top: 42px;
 }
 
+/* The desktop application uses the blue whale as its persistent product mark.
+   Keep the browser's neutral sidebar artwork unchanged. */
+:global(html[data-dsh-desktop]) .brandMark,
+:global(html[data-dsh-desktop]) .railMark {
+  color: var(--dsw-alias-brand-primary-new-colorprimary-new-color);
+}
+
 /* Scrollbars in the column are a pointer affordance: the shell adds this
    class whenever the pointer is not inside (SidebarRoot.tsx owns the linger),
    and rebinding ui-theme's indirection pair to `transparent` takes the thumb

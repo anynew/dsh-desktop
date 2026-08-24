@@ -79,4 +79,12 @@ describe('SidebarRoot.module.css', () => {
     expect(desktopLogo?.get('padding')).toBe('54px 0 10px 4px')
     expect(declarations(':global(html[data-dsh-desktop]) .root.collapsed')?.get('padding-top')).toBe('42px')
   })
+
+  it('uses the blue product mark in the desktop sidebar only', () => {
+    const desktopMark = declarations(':global(html[data-dsh-desktop]) .brandMark')
+    expect(desktopMark?.get('color')).toBe('var(--dsw-alias-brand-primary-new-colorprimary-new-color)')
+    expect(declarations(':global(html[data-dsh-desktop]) .railMark')?.get('color')).toBe(
+      'var(--dsw-alias-brand-primary-new-colorprimary-new-color)',
+    )
+  })
 })
