@@ -79,7 +79,10 @@ if (!app.requestSingleInstanceLock()) {
     if (quitting) return
     event.preventDefault()
     quitting = true
-    void shutdown().finally(() => { app.quit() })
+    // Dock's Quit command is a one-shot macOS action. Ending the process
+    // after ordered cleanup avoids requiring a second quit gesture after the
+    // first event was prevented for asynchronous disposal.
+    void shutdown().finally(() => { app.exit(0) })
   })
 
   app.on('certificate-error', (event, _webContents, _url, _error, _certificate, callback) => {
