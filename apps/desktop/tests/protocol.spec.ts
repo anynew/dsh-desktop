@@ -48,7 +48,9 @@ describe('desktop custom protocol', () => {
     const response = await handle(new Request('dsh-app://app/'))
 
     expect(response.status).toBe(200)
-    expect(await response.text()).toContain('window.__DSH_BOOT__ = {"rev":"desktop-graph"')
+    const html = await response.text()
+    expect(html).toContain('window.__ModuleLoader__=')
+    expect(html).toContain('globalThis["__DSH_BOOT__"] = {"rev":"desktop-graph"')
     expect(response.headers.get('content-security-policy')).toContain("default-src 'none'")
     expect(response.headers.get('content-security-policy')).toContain("connect-src 'none'")
     expect(response.headers.get('content-security-policy')).toMatch(/script-src 'self' 'sha256-/)

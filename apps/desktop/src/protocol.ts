@@ -4,7 +4,8 @@ import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { dirname, extname, resolve, sep } from 'node:path'
 import type { ClientModuleRegistry, WebBootGraph } from '@deepseek-ai/dsh-client-modules'
-import { injectBootManifest } from '@deepseek-ai/dsh-client-modules'
+import { bootInjections } from '@deepseek-ai/dsh-client-modules'
+import { renderIndexInjections } from '@deepseek-ai/dsh-host-webserver'
 import { DESKTOP_APP_ORIGIN } from './ipc-main.ts'
 
 const MIME: Readonly<Record<string, string>> = {
@@ -94,7 +95,7 @@ function resolvePluginResource(
 }
 
 async function serveIndex(path: string, graph: WebBootGraph, head: boolean): Promise<Response> {
-  const html = injectBootManifest(await readFile(path, 'utf8'), graph)
+  const html = renderIndexInjections(await readFile(path, 'utf8'), bootInjections(graph))
   const policy = contentSecurityPolicy(html)
   return new Response(head ? null : html, {
     status: 200,
