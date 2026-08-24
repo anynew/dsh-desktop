@@ -24,6 +24,7 @@ describe('desktop profile adapter', () => {
       { id: 'client-hmr', disabled: true },
       { id: 'directory-picker', disabled: true },
       { insert: [{ id: 'directory-picker-desktop', name: '@deepseek-ai/dsh-host-directory-picker-native' }] },
+      { insert: [{ id: 'ui-directory-picker-desktop', name: '@deepseek-ai/dsh-client-ui-directory-picker-native' }] },
       { id: 'connection', inject: [], config: { trustedHosts: [] } },
       {
         id: 'agent-presets',

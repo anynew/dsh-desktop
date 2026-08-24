@@ -108,6 +108,10 @@ export function desktopCarrierPatches(profile: Profile): PatchOptions[] {
     { id: 'client-hmr', disabled: true },
     { id: 'directory-picker', disabled: true },
     { insert: [{ id: 'directory-picker-desktop', name: '@deepseek-ai/dsh-host-directory-picker-native' }] },
+    // The native picker has a separate client surface that occupies
+    // ui-workspace's directory-flow slots. Keep it paired with the Host row:
+    // without it WorkspaceBrowser intentionally hides its add-workspace action.
+    { insert: [{ id: 'ui-directory-picker-desktop', name: '@deepseek-ai/dsh-client-ui-directory-picker-native' }] },
     { id: 'connection', inject: [], config: { trustedHosts: [] } },
     {
       id: 'agent-presets',
